@@ -1,0 +1,55 @@
+version: '3.7'
+
+services:
+    db-airflow:
+        image: postgres:10
+        environment:
+            - POSTGRES_USER=airflow
+            - POSTGRES_PASSWORD=airflow
+            - POSTGRES_DB=airflow
+            - PGDATA=/var/lib/postgresql/data/pgdata
+        networks:
+            - test
+        logging:
+            options:
+                max-size: 10m
+                max-file: "3"
+        volumes:
+            - /databases/veo365/test/airflow/pg:/var/lib/postgresql/data
+
+    webserver:
+        image: registry.ng.bluemix.net/prixtips/airflow:latest
+        restart: always
+        environment:
+            - LOAD_EX=y
+            - EXECUTOR=Local
+            - POSTGRES_HOST=db-airflow
+        logging:
+            options:
+                max-size: 10m
+                max-file: "3"
+        volumes:
+            - /mnt/veo365/airflow/test/dags:/usr/local/airflow/dags
+            - /mnt/veo365/airflow/test/plugins:/usr/local/airflow/plugins
+        networks:
+            - test
+            - traefik-net
+        deploy:
+          labels:
+            - 'traefik.frontend.rule=Host:airflow-test.vim365.com'
+            - 'traefik.port=8080'
+            - 'traefik.enable=true'
+            - 'traefik.docker.network=traefik-net'
+        command: webserver
+        healthcheck:
+            test: ["CMD-SHELL", "[ -f /usr/local/airflow/airflow-webserver.pid ]"]
+            interval: 30s
+            timeout: 30s
+            retries: 3
+
+networks:
+  test:
+    external: true
+  traefik-net:
+    external: true
+
